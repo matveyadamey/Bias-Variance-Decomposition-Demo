@@ -1039,3 +1039,105 @@ footer {
     columns: 1;
   }
 }
+
+.mse-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.mse-line b {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.mse-note {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.curve-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.seg-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--bg-2);
+}
+
+.seg-toggle button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 4px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.seg-toggle button.on {
+  background: var(--ink);
+  color: #1a140e;
+  font-weight: 700;
+}
+
+.explain {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.explain p {
+  margin: 0 0 8px;
+}
+
+.explain ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.explain li {
+  line-height: 1.45;
+}
+
+.explain b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.explain .sw {
+  margin-right: 7px;
+}
+
+.sw--noise {
+  background: transparent;
+  border-top: 2px dashed var(--c-noise);
+  height: 0;
+  width: 14px;
+  border-radius: 0;
+  vertical-align: 3px;
+}
+
+.curve .explain {
+  margin: 4px 0 12px;
+}

@@ -100,7 +100,7 @@ BV.withHyper = function (config, patch) {
   return Object.assign({}, config, { hyper: Object.assign({}, config.hyper, patch) });
 };
 
-// U-кривая по главному рычагу.
+// U-кривая по главному гиперпараметру.
 BV.sweep = function (config) {
   const meta = BV.MODEL_META[config.model];
   const main = meta.main;
@@ -158,7 +158,7 @@ BV.suggest = function (config, swept, baseStats) {
   const cands = [];
   const mainField = fieldOf(kind, meta.main);
 
-  // 1. Лучшее значение главного рычага.
+  // 1. Лучшее значение главного гиперпараметра.
   const best = swept.bestIdx !== swept.curIdx
     ? Object.assign({ value: swept.points[swept.bestIdx].value },
         BV.evaluate(BV.withHyper(cfgT, { [meta.main]: swept.points[swept.bestIdx].value })).stats)
@@ -249,7 +249,7 @@ BV.suggest = function (config, swept, baseStats) {
   return { base, trials, items: useful, data, best: useful[0] || null };
 };
 
-// Итоговый режим: положение на U-кривой главного рычага, но если другой рычаг
+// Итоговый режим: положение на U-кривой главного гиперпараметра, но если другой гиперпараметр
 // даёт большой выигрыш (≥ 15%), «баланс» был бы неправдой — берём его направление.
 BV.finalRegime = function (swept, sugg) {
   if (swept.regime === "balanced" && sugg.best && sugg.best.gain >= 0.15 && sugg.best.dir) {
@@ -260,6 +260,7 @@ BV.finalRegime = function (swept, sugg) {
 
 BV.ratio = function (a, b) {
   const r = a / Math.max(b, 1e-9);
+  if (r < 0.01) return "×<0.01";
   if (r >= 10) return `×${r.toFixed(0)}`;
   return `×${r.toFixed(2).replace(/\.?0+$/, "")}`;
 };

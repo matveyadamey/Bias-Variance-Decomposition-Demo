@@ -35,6 +35,10 @@ const S = {
 
 const f = (x) => BV.format(x);
 
+// Шкала оси y у кривых: по умолчанию обычная, как в учебниках.
+const YLOG = { u: false, learn: false };
+const yLabelFor = (log) => (log ? "ошибка, MSE (лог. шкала)" : "ошибка, MSE");
+
 // ---------- параметры ----------
 
 function readHypers(kind) {
@@ -319,7 +323,8 @@ function uSpec() {
     marks,
     zones,
     xLabel: `${field.short}: ${dir} → сложнее`,
-    yLabel: "ошибка, MSE (лог. шкала)",
+    yLog: YLOG.u,
+    yLabel: yLabelFor(YLOG.u),
   };
 }
 
@@ -335,7 +340,8 @@ function learnSpec() {
     series: seriesOf(lc.points),
     marks: [{ i: lc.curIdx, label: `вы здесь · n = ${S.config.n}`, color: "rgba(244,234,216,0.7)" }],
     xLabel: "n, точек в выборке (лог. шкала)",
-    yLabel: "ошибка, MSE (лог. шкала)",
+    yLog: YLOG.learn,
+    yLabel: yLabelFor(YLOG.learn),
   };
 }
 
@@ -358,7 +364,7 @@ function paintUReadout() {
   } else {
     rel = `Вы левее минимума — модель проще, чем нужно. Ошибка держится на смещении (${f(cur.bias2)} против ${f(best.bias2)} в минимуме).`;
   }
-  $("u-readout").innerHTML = `Минимум теста — при <b>${field.short} = ${Number(best.value.toFixed(3))}</b> (${f(best.testMse)}), сейчас ${f(cur.testMse)}. ${rel} Обратите внимание: ошибка на обучении (пунктир) почти всегда падает с ростом сложности — по ней оптимум не найти.`;
+  $("u-readout").innerHTML = `Минимум теста — при <b>${field.short} = ${Number(best.value.toFixed(3))}</b> (${f(best.testMse)}), сейчас ${f(cur.testMse)}. ${rel}`;
 }
 
 function paintLearnReadout() {
@@ -407,15 +413,6 @@ function hoverCurve(which, i) {
 
 // ---------- метрики, диагноз, подсказки ----------
 
-function paintMetrics(st) {
-  $("m-bias").textContent = f(st.bias2);
-  $("m-var").textContent = f(st.variance);
-  $("m-noise").textContent = f(st.noise);
-  $("m-test").textContent = f(st.testMse);
-  $("m-train").textContent = f(st.trainMse);
-  $("m-gap").textContent = f(st.testMse - st.trainMse);
-}
-
 function stackBar(st, maxTotal, compact) {
   const tot = st.bias2 + st.variance + st.noise;
   const w = (v) => ((100 * v) / maxTotal).toFixed(2) + "%";
@@ -423,6 +420,18 @@ function stackBar(st, maxTotal, compact) {
   const seg = (cls, v, label) =>
     `<span class="seg ${cls}" style="width:${w(v)}" title="${label}: ${f(v)}">${!compact && v / tot > 0.18 ? `${label} ${pct(v)}` : ""}</span>`;
   return `<div class="bar">${seg("seg-noise", st.noise, "σ²")}${seg("seg-bias", st.bias2, "Bias²")}${seg("seg-var", st.variance, "Var")}</div>`;
+}
+
+// Почему MSE на тесте и ожидаемая ошибка — разные числа, и почему они должны совпасть.
+function mseNote(st) {
+  const pct = Math.round((100 * Math.abs(st.testMse - st.total)) / Math.max(st.total, 1e-9));
+  const tail =
+    pct < 1
+      ? "Они практически совпадают (расхождение меньше 1%) — разложение подтверждается экспериментом."
+      : pct <= 20
+      ? `Они расходятся всего на ${pct}% — разложение подтверждается экспериментом.`
+      : `Пока они расходятся на ${pct}% — добавьте выборок, и оценки сойдутся.`;
+  return `<p class="mse-note">Ожидаемая ошибка ${f(st.total)} собрана из разложения Bias² + Variance + σ², а MSE на тестовой ${f(st.testMse)} измерена напрямую на новых точках. ${tail}</p>`;
 }
 
 function ctxFor(config) {
@@ -451,7 +460,9 @@ function paintJournal(st, config, regime) {
   $("stackbar").innerHTML =
     `<div class="stack-head"><span>Из чего состоит ожидаемая ошибка ${f(st.total)}</span></div>` +
     stackBar(st, st.total, false) +
-    `<div class="stack-key"><span><i class="sw" style="background:var(--c-noise)"></i>σ² ${f(st.noise)}</span><span><i class="sw" style="background:var(--c-bias)"></i>Bias² ${f(st.bias2)}</span><span><i class="sw" style="background:var(--c-var)"></i>Variance ${f(st.variance)}</span></div>`;
+    `<div class="stack-key"><span><i class="sw" style="background:var(--c-noise)"></i>σ² ${f(st.noise)}</span><span><i class="sw" style="background:var(--c-bias)"></i>Bias² ${f(st.bias2)}</span><span><i class="sw" style="background:var(--c-var)"></i>Variance ${f(st.variance)}</span></div>` +
+    `<div class="mse-line"><span>MSE на тестовой <b>${f(st.testMse)}</b></span><span>на обучающей <b>${f(st.trainMse)}</b></span><span>зазор <b>${f(st.testMse - st.trainMse)}</b></span></div>` +
+    mseNote(st);
   $("verdict").innerHTML = '<span class="pending">Проверяю соседние настройки…</span>';
   const ctx = ctxFor(config);
   $("why-list").innerHTML = BV.buildWhy(st, ctx).map((t) => `<li>${t}</li>`).join("");
@@ -488,7 +499,7 @@ function paintSuggestions() {
     html += `<article class="sugg sugg--ok">
       <p class="sugg-tag">оптимум</p>
       <h3>Вы около дна U-кривой</h3>
-      <p class="sugg-why">Ни один соседний шаг рычагов этой модели не снижает тестовую ошибку больше чем на 3%. Оставшаяся ошибка: шум σ² = ${f(base.noise)} плюс неизбежная плата за конечную выборку.</p>
+      <p class="sugg-why">Никакое соседнее значение гиперпараметров этой модели не снижает тестовую ошибку больше чем на 3%. Оставшаяся ошибка — шум σ² = ${f(base.noise)} плюс неизбежная плата за конечную выборку.</p>
     </article>`;
   }
   if (sg.data) html += card(sg.data, 99);
@@ -527,7 +538,6 @@ function run() {
   drawTop();
   paintAnimReadout();
   paintAnimButtons();
-  paintMetrics(S.pack.stats);
   paintChips(S.pack.stats, null);
   const main = BV.MODEL_META[config.model].main;
   const field = BV.MODEL_META[config.model].fields.find((x) => x.id === main);
@@ -603,6 +613,15 @@ function boot() {
   els.hypers.addEventListener("input", () => {
     paintValues();
     schedule();
+  });
+  document.querySelectorAll(".seg-toggle").forEach((group) => {
+    group.addEventListener("click", (ev) => {
+      const b = ev.target.closest("button[data-scale]");
+      if (!b) return;
+      YLOG[group.dataset.chart] = b.dataset.scale === "log";
+      group.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+      drawCurves();
+    });
   });
   $("anim-play").addEventListener("click", animPlay);
   $("anim-step").addEventListener("click", animStep);

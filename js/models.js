@@ -271,7 +271,7 @@ BV.SWEEP_GRID = {
   depth: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 };
 
-// Значения главного рычага, упорядоченные по росту сложности модели.
+// Значения главного гиперпараметра, упорядоченные по росту сложности модели.
 BV.sweepValues = function (kind, hyper) {
   const meta = BV.MODEL_META[kind];
   const field = meta.fields.find((f) => f.id === meta.main);

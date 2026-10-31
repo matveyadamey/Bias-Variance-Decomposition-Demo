@@ -118,39 +118,6 @@
         </main>
       </div>
 
-      <section class="metrics" aria-label="Числа опыта">
-        <article>
-          <h3><i class="sw" style="background:var(--c-bias)"></i>Bias²</h3>
-          <p class="num" id="m-bias">—</p>
-          <p>Насколько среднее предсказание далеко от истины.</p>
-        </article>
-        <article>
-          <h3><i class="sw" style="background:var(--c-var)"></i>Variance</h3>
-          <p class="num" id="m-var">—</p>
-          <p>Насколько модели с разных выборок спорят друг с другом.</p>
-        </article>
-        <article>
-          <h3><i class="sw" style="background:var(--c-noise)"></i>Шум σ²</h3>
-          <p class="num" id="m-noise">—</p>
-          <p>Неустранимый пол: даже идеальная ŷ = f(x) его не уберёт.</p>
-        </article>
-        <article>
-          <h3><i class="sw" style="background:var(--c-test)"></i>MSE на тестовой выборке</h3>
-          <p class="num" id="m-test">—</p>
-          <p>Средняя ошибка на новых точках. ≈ Bias² + Var + σ².</p>
-        </article>
-        <article>
-          <h3><i class="sw sw--dash"></i>MSE на обучающей выборке</h3>
-          <p class="num" id="m-train">—</p>
-          <p>Малое обучение при большом тесте — след переобучения.</p>
-        </article>
-        <article>
-          <h3>Зазор</h3>
-          <p class="num" id="m-gap">—</p>
-          <p>Тест минус обучение. Растёт, когда модель запоминает шум.</p>
-        </article>
-      </section>
-
       <section class="journal" aria-label="Выводы">
         <div class="journal-card diagnosis">
           <div class="diag-text">
@@ -171,23 +138,58 @@
 
       <section class="curves" aria-label="Кривые">
         <article class="panel curve">
-          <h2>U-кривая: ошибка от сложности</h2>
-          <p class="sub" id="u-sub">Тот же опыт, главный рычаг прогнан по сетке. Сложность растёт слева направо.</p>
+          <div class="curve-head">
+            <h2>U-кривая: ошибка от сложности</h2>
+            <div class="seg-toggle" data-chart="u" role="group" aria-label="Шкала оси y">
+              <button type="button" data-scale="lin" class="on">Обычная</button>
+              <button type="button" data-scale="log">Лог.</button>
+            </div>
+          </div>
           <div class="chart-wrap">
             <canvas id="u-chart" data-aspect="0.62" data-aspect-mobile="0.8" data-minh="240" data-maxh="400"></canvas>
             <div class="tip" id="u-tip" hidden></div>
           </div>
           <ul class="legend legend--sm" id="u-legend"></ul>
+          <div class="explain">
+            <p>
+              Каждая точка по горизонтали — тот же опыт на тех же данных, но с другим
+              значением главного гиперпараметра. Слева модели простые, справа сложные.
+            </p>
+            <ul>
+              <li><i class="sw" style="background:var(--c-bias)"></i><b>Bias²</b> падает с ростом сложности: гибкая модель лучше повторяет форму зависимости.</li>
+              <li><i class="sw" style="background:var(--c-var)"></i><b>Variance</b> растёт: гибкая модель сильнее подстраивается под шум конкретной выборки.</li>
+              <li><i class="sw" style="background:var(--c-test)"></i><b>MSE на тестовой</b> ≈ Bias² + Variance + σ². Одно слагаемое падает, другое растёт, поэтому сумма имеет форму буквы U. Её минимум — лучший компромисс.</li>
+              <li><i class="sw sw--dash"></i><b>MSE на обучающей</b> почти всегда только падает. Поэтому сложность выбирают по ошибке на новых данных, а не на обучающих.</li>
+              <li><i class="sw sw--noise"></i><b>σ²</b> — пол: ниже него тестовая ошибка опуститься не может.</li>
+            </ul>
+          </div>
           <p class="readout" id="u-readout"></p>
         </article>
         <article class="panel curve">
-          <h2>Кривая обучения: ошибка от n</h2>
-          <p class="sub">Та же модель и гиперпараметры, меняется только размер выборки.</p>
+          <div class="curve-head">
+            <h2>Кривая обучения: ошибка от n</h2>
+            <div class="seg-toggle" data-chart="learn" role="group" aria-label="Шкала оси y">
+              <button type="button" data-scale="lin" class="on">Обычная</button>
+              <button type="button" data-scale="log">Лог.</button>
+            </div>
+          </div>
           <div class="chart-wrap">
             <canvas id="learn-chart" data-aspect="0.62" data-aspect-mobile="0.8" data-minh="240" data-maxh="400"></canvas>
             <div class="tip" id="learn-tip" hidden></div>
           </div>
           <ul class="legend legend--sm" id="learn-legend"></ul>
+          <div class="explain">
+            <p>
+              Каждая точка по горизонтали — та же модель с теми же гиперпараметрами,
+              но обученная на выборках другого размера n.
+            </p>
+            <ul>
+              <li><i class="sw" style="background:var(--c-var)"></i><b>Variance</b> падает примерно как 1/n: чем больше точек, тем меньше модели с разных выборок отличаются друг от друга.</li>
+              <li><i class="sw" style="background:var(--c-bias)"></i><b>Bias²</b> почти не меняется: смещение задаётся тем, какие функции модель вообще умеет строить, а не количеством данных.</li>
+              <li><i class="sw sw--dash"></i><b>MSE на обучающей</b> растёт: много точек труднее запомнить. <i class="sw" style="background:var(--c-test)"></i><b>MSE на тестовой</b> падает.</li>
+              <li><i class="sw sw--noise"></i>Обе ошибки сходятся к полу <b>σ²</b>. Если они сошлись заметно выше пола, мешает смещение: больше данных не поможет, нужна более гибкая модель.</li>
+            </ul>
+          </div>
           <p class="readout" id="learn-readout"></p>
         </article>
       </section>

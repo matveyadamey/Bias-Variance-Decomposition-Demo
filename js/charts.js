@@ -341,6 +341,11 @@ BV.drawLines = function (canvas, spec, hover) {
       if (v > hi) hi = v;
     }
   }
+  const maxAll = hi;
+  let ys;
+  let yTicks;
+  let clipped = false;
+  if (spec.yLog) {
   lo = Math.max(lo, 1e-4) / 1.6;
   // Ниже ~1/40 от лучшего теста значения практически нулевые: на лог-шкале они
   // только раздували бы шум оценки. Прижимаем их к нижней границе.
@@ -349,7 +354,22 @@ BV.drawLines = function (canvas, spec, hover) {
   const floorRef = Math.min(...spec.series.filter((s) => s.anchor).map((s) => Math.min(...s.values)));
   const cap = Number.isFinite(floorRef) ? floorRef * 60 : hi;
   hi = Math.min(hi * 1.6, Math.max(cap, lo * 10));
-  const ys = scale(lo, hi, area.b, area.t, true);
+  ys = scale(lo, hi, area.b, area.t, true);
+  yTicks = logTicks(lo, hi);
+  } else {
+    // Обычная шкала, как в учебниках. Взрывные значения переобучения обрезаем,
+    // иначе вся «чаша» U-кривой сплющится у нуля.
+    const anchor = spec.series.find((s) => s.anchor) || spec.series[0];
+    const sorted = anchor.values.slice().sort((a, b) => a - b);
+    const med = sorted[Math.floor(sorted.length / 2)];
+    const noiseS = spec.series.find((s) => s.key === "noise");
+    const floorN = noiseS ? noiseS.values[0] : 0;
+    lo = 0;
+    hi = Math.min(maxAll * 1.08, Math.max(med * 3, floorN * 2.5, sorted[0] * 4));
+    clipped = maxAll > hi * 1.02;
+    ys = scale(0, hi, area.b, area.t, false);
+    yTicks = BV.niceTicks(0, hi, 5);
+  }
 
   // Зоны «недообучение / переобучение»
   ctx.save();
@@ -366,12 +386,21 @@ BV.drawLines = function (canvas, spec, hover) {
   }
   ctx.restore();
 
-  frame(ctx, area, xs, ys, spec.xTicks, logTicks(lo, hi), { xLabel: spec.xLabel, yLabel: spec.yLabel });
+  frame(ctx, area, xs, ys, spec.xTicks, yTicks, { xLabel: spec.xLabel, yLabel: spec.yLabel });
 
   ctx.save();
   clipArea(ctx, area);
   for (const s of spec.series) stroke(ctx, spec.x, s.values.map((v) => Math.max(v, lo)), xs, ys, s.color, s.width || 2, s.dash);
   ctx.restore();
+  if (clipped) {
+    ctx.save();
+    ctx.font = MONO;
+    ctx.fillStyle = BV.C.muted;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "top";
+    ctx.fillText("↑ часть значений выше шкалы", area.r - 4, area.t + 22);
+    ctx.restore();
+  }
 
   // Вертикальные отметки: «вы здесь», «минимум»
   for (const m of spec.marks || []) {
