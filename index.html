@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bias–Variance Lab</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,560;0,9..144,700;1,9..144,480&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="hero">
+        <h1>Bias-Variance trade-off</h1>
+      </header>
+
+      <section class="presets" aria-label="Готовые опыты">
+        <h2>Готовые опыты</h2>
+        <div class="preset-row" id="preset-row"></div>
+      </section>
+
+      <div class="workspace">
+        <aside class="panel controls" aria-label="Параметры опыта">
+          <h2>Настройки</h2>
+
+          <label>
+            Истинная зависимость
+            <select id="truth">
+              <optgroup label="Гладкие">
+                <option value="linear">Прямая линия</option>
+                <option value="sine" selected>Синусоида</option>
+                <option value="poly">Кубический изгиб</option>
+                <option value="sigmoid">Плавная ступенька (сигмоида)</option>
+              </optgroup>
+              <optgroup label="Сложные">
+                <option value="wiggle">Две частоты</option>
+                <option value="fast">Быстрые колебания</option>
+                <option value="chirp">Ускоряющиеся колебания</option>
+                <option value="damped">Затухающие колебания</option>
+              </optgroup>
+              <optgroup label="Негладкие">
+                <option value="kink">Излом</option>
+                <option value="step">Скачок (разрыв)</option>
+                <option value="bump">Узкий пик</option>
+              </optgroup>
+            </select>
+          </label>
+
+          <label>
+            Модель
+            <select id="model">
+              <option value="poly">Полиномиальная регрессия</option>
+              <option value="ridge">Гребневая полиномиальная</option>
+              <option value="knn">k ближайших соседей</option>
+              <option value="tree">Решающее дерево</option>
+            </select>
+          </label>
+
+          <div id="hyper-fields"></div>
+
+          <label>
+            Точек в выборке
+            <input id="n" type="range" min="10" max="240" step="1" value="30" />
+            <span class="value" data-for="n"></span>
+          </label>
+
+          <label>
+            Шум σ
+            <input id="sigma" type="range" min="0.05" max="0.7" step="0.01" value="0.25" />
+            <span class="value" data-for="sigma"></span>
+          </label>
+
+          <label>
+            Тип шума
+            <select id="noise">
+              <option value="gauss">Обычный (нормальный)</option>
+              <option value="hetero">Растёт слева направо</option>
+              <option value="outliers">С редкими выбросами</option>
+            </select>
+          </label>
+
+          <label>
+            Число независимых выборок
+            <input id="trials" type="range" min="5" max="40" step="1" value="18" />
+            <span class="value" data-for="trials"></span>
+          </label>
+
+          <label>
+            Зерно генератора
+            <input id="seed" type="number" min="1" max="99999" value="7" />
+          </label>
+
+        </aside>
+
+        <main class="panel stage">
+          <div class="chart-head">
+            <div>
+              <p id="chart-caption"></p>
+            </div>
+            <div class="toolbar" role="group" aria-label="Просмотр выборок">
+              <button type="button" id="anim-play" class="tb tb-main" title="Показывать модели по одной: каждая обучена на своей случайной выборке">▶ Показать по очереди</button>
+              <button type="button" id="anim-step" class="tb" title="Перейти к модели, обученной на следующей выборке">Следующая выборка</button>
+              <button type="button" id="anim-all" class="tb" title="Вернуть вид, где все модели нарисованы одновременно">Показать все</button>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="fit-chart" data-aspect="0.62" data-aspect-mobile="1.05" data-minh="300" data-maxh="580"></canvas>
+            <div class="chips" id="fit-chips" aria-live="polite"></div>
+            <div class="tip" id="fit-tip" data-top="52" hidden></div>
+          </div>
+          <ul class="legend" id="fit-legend"></ul>
+          <p class="readout" id="anim-readout"></p>
+
+        </main>
+      </div>
+
+      <section class="metrics" aria-label="Числа опыта">
+        <article>
+          <h3><i class="sw" style="background:var(--c-bias)"></i>Bias²</h3>
+          <p class="num" id="m-bias">—</p>
+          <p>Насколько среднее предсказание далеко от истины.</p>
+        </article>
+        <article>
+          <h3><i class="sw" style="background:var(--c-var)"></i>Variance</h3>
+          <p class="num" id="m-var">—</p>
+          <p>Насколько модели с разных выборок спорят друг с другом.</p>
+        </article>
+        <article>
+          <h3><i class="sw" style="background:var(--c-noise)"></i>Шум σ²</h3>
+          <p class="num" id="m-noise">—</p>
+          <p>Неустранимый пол: даже идеальная ŷ = f(x) его не уберёт.</p>
+        </article>
+        <article>
+          <h3><i class="sw" style="background:var(--c-test)"></i>MSE на тестовой выборке</h3>
+          <p class="num" id="m-test">—</p>
+          <p>Средняя ошибка на новых точках. ≈ Bias² + Var + σ².</p>
+        </article>
+        <article>
+          <h3><i class="sw sw--dash"></i>MSE на обучающей выборке</h3>
+          <p class="num" id="m-train">—</p>
+          <p>Малое обучение при большом тесте — след переобучения.</p>
+        </article>
+        <article>
+          <h3>Зазор</h3>
+          <p class="num" id="m-gap">—</p>
+          <p>Тест минус обучение. Растёт, когда модель запоминает шум.</p>
+        </article>
+      </section>
+
+      <section class="journal" aria-label="Выводы">
+        <div class="journal-card diagnosis">
+          <div class="diag-text">
+          <p class="kicker" id="regime-kicker">режим</p>
+          <h2 id="regime-title">—</h2>
+          <p id="regime-body"></p>
+          </div>
+          <div class="diag-side">
+          <div class="stackbar" id="stackbar" aria-label="Из чего состоит ошибка"></div>
+          <p class="verdict" id="verdict"></p>
+          </div>
+        </div>
+        <div class="journal-card">
+          <h2>Почему так вышло</h2>
+          <ul id="why-list"></ul>
+        </div>
+      </section>
+
+      <section class="curves" aria-label="Кривые">
+        <article class="panel curve">
+          <h2>U-кривая: ошибка от сложности</h2>
+          <p class="sub" id="u-sub">Тот же опыт, главный рычаг прогнан по сетке. Сложность растёт слева направо.</p>
+          <div class="chart-wrap">
+            <canvas id="u-chart" data-aspect="0.62" data-aspect-mobile="0.8" data-minh="240" data-maxh="400"></canvas>
+            <div class="tip" id="u-tip" hidden></div>
+          </div>
+          <ul class="legend legend--sm" id="u-legend"></ul>
+          <p class="readout" id="u-readout"></p>
+        </article>
+        <article class="panel curve">
+          <h2>Кривая обучения: ошибка от n</h2>
+          <p class="sub">Та же модель и гиперпараметры, меняется только размер выборки.</p>
+          <div class="chart-wrap">
+            <canvas id="learn-chart" data-aspect="0.62" data-aspect-mobile="0.8" data-minh="240" data-maxh="400"></canvas>
+            <div class="tip" id="learn-tip" hidden></div>
+          </div>
+          <ul class="legend legend--sm" id="learn-legend"></ul>
+          <p class="readout" id="learn-readout"></p>
+        </article>
+      </section>
+
+      <section class="verified" aria-label="Проверенные шаги">
+        <header>
+          <h2>Что сделать</h2>
+        </header>
+        <div class="sugg-grid" id="sugg-grid"></div>
+      </section>
+
+    </div>
+
+    <script src="js/math.js"></script>
+    <script src="js/models.js"></script>
+    <script src="js/lab.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/insights.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
